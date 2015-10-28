@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
+	"strings"
 
 	// Vendor's libs
 	"github.com/tealeg/xlsx"
@@ -13,7 +15,11 @@ import (
 func main() {
 	excelFileName := "test.xlsx"
 	tbl, err := ParseDoc(excelFileName)
-	fmt.Println(tbl, err)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(tbl)
 }
 
 type Table struct {
@@ -49,8 +55,25 @@ func (t *Table) Header() []string {
 	return t.data[0]
 }
 
+func (t *Table) Data() [][]string {
+	return t.data[1:]
+}
+
 func (t *Table) CellAt(row, col int) string {
 	return t.data[row+1][col]
+}
+
+func (t *Table) String() string {
+	res := strings.Join(t.Header(), "|")
+	res += "\n===\n"
+
+	data := t.Data()
+	for x := range data {
+		res += strings.Join(data[x], "|")
+		res += "\n"
+	}
+
+	return res
 }
 
 func ParseDoc(path string) (*Table, error) {
@@ -65,18 +88,17 @@ func ParseDoc(path string) (*Table, error) {
 		if err != nil {
 			val = c.Value
 		}
-		return val
+
+		return strings.Replace(val, `\ `, ` `, -1)
 	}
 
 	mtrx := make([][]string, 0, 10) // 10 rows by default
 	sheet := xlFile.Sheets[0]       // Always fist sheet
 
-	for nr, row := range sheet.Rows {
+	for _, row := range sheet.Rows {
 		if len(row.Cells) == 0 {
 			continue
 		}
-
-		// log.Printf("===\nbdr(%#v) == defBdr(%#v) = %v\nbdr(%#v) == emptyBdr(%#v) = %v", bdr, defBdr, bdr == defBdr, bdr, emptyBdr, bdr == emptyBdr)
 
 		// Find first cell with border set
 		offset := 0
@@ -93,17 +115,13 @@ func ParseDoc(path string) (*Table, error) {
 			continue
 		}
 
-		fmt.Printf("%03d ", nr)
-
 		r := make([]string, 0, len(row.Cells)-offset)
-		for nc, cell := range row.Cells[offset:] {
+		for _, cell := range row.Cells[offset:] {
 			if hasBorder(cell) {
 				r = append(r, getData(cell))
-				fmt.Printf("[%d]%q ", nc, r[nc])
 			}
 		}
 		mtrx = append(mtrx, r)
-		fmt.Println()
 	}
 
 	if len(mtrx) == 0 {
