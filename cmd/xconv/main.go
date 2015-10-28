@@ -68,14 +68,16 @@ func (t *Table) SetDataAt(row, col int, data string) {
 }
 
 func (t *Table) String() string {
-	res := strings.Join(t.Header(), "|")
-	res += "\n===\n"
+	res := "=== Header ===\n"
+	res += strings.Join(t.Header(), "|")
+	res += "\n---  Data  ---\n"
 
 	data := t.Data()
 	for x := range data {
 		res += strings.Join(data[x], "|")
 		res += "\n"
 	}
+	res += "===  End   ===\n"
 
 	return res
 }
