@@ -14,12 +14,16 @@ import (
 
 func main() {
 	excelFileName := "test.xlsx"
-	tbl, err := ParseDoc(excelFileName)
+	tbl1, err := ParseDoc(excelFileName)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("tbl1: %v", err)
 	}
+	fmt.Println(tbl1)
+}
 
-	fmt.Println(tbl)
+type Region struct {
+	Origin struct{ X, Y int }
+	Size   struct{ DX, DY int }
 }
 
 type Table struct {
@@ -59,8 +63,8 @@ func (t *Table) Data() [][]string {
 	return t.data[1:]
 }
 
-func (t *Table) CellAt(row, col int) string {
-	return t.data[row+1][col]
+func (t *Table) SetDataAt(row, col int, data string) {
+	t.data[row][col] = data
 }
 
 func (t *Table) String() string {
@@ -82,56 +86,72 @@ func ParseDoc(path string) (*Table, error) {
 		return nil, err
 	}
 
-	getData := func(c *xlsx.Cell) string {
-		// fmt.Printf("%s\n", cell.String())
-		val, err := c.SafeFormattedValue()
-		if err != nil {
-			val = c.Value
-		}
+	allRows := xlFile.Sheets[0].Rows
 
-		return strings.Replace(val, `\ `, ` `, -1)
+	reg, err := findTableRegeon(allRows)
+	if err != nil {
+		return nil, err
 	}
 
-	mtrx := make([][]string, 0, 10) // 10 rows by default
-	sheet := xlFile.Sheets[0]       // Always fist sheet
-
-	for _, row := range sheet.Rows {
-		if len(row.Cells) == 0 {
-			continue
+	tbl := NewTable(reg.Size.DY, reg.Size.DX)
+	for y, row := range allRows[reg.Origin.Y : reg.Origin.Y+reg.Size.DY] {
+		for x, cell := range row.Cells[reg.Origin.X : reg.Origin.X+reg.Size.DX] {
+			tbl.SetDataAt(y, x, getData(cell))
 		}
+	}
 
-		// Find first cell with border set
-		offset := 0
-		hbFlag := false
-		for i, c := range row.Cells {
-			if hasBorder(c) {
-				offset = i
-				hbFlag = true
+	return tbl, nil
+}
+
+func findTableRegeon(rows []*xlsx.Row) (*Region, error) {
+	var reg *Region
+
+	// Find origin and # of columns
+	for y, row := range rows {
+		for x, cell := range row.Cells {
+			if hasBorder(cell) {
+				if reg == nil {
+					// set origin
+					reg = new(Region)
+					reg.Origin.X = x
+					reg.Origin.Y = y
+				}
+				reg.Size.DX++
+			} else {
+				if reg != nil {
+					break
+				}
+			}
+		}
+		if reg != nil {
+			break
+		}
+	}
+
+	// Find # of rows
+	if reg != nil {
+		for _, row := range rows[reg.Origin.Y:] {
+			if hasBorder(row.Cells[reg.Origin.X]) {
+				reg.Size.DY++
+			} else {
 				break
 			}
 		}
 
-		if !hbFlag {
-			continue
-		}
-
-		r := make([]string, 0, len(row.Cells)-offset)
-		for _, cell := range row.Cells[offset:] {
-			if hasBorder(cell) {
-				r = append(r, getData(cell))
-			}
-		}
-		mtrx = append(mtrx, r)
-	}
-
-	if len(mtrx) == 0 {
+		return reg, nil
+	} else {
 		return nil, errors.New("No data")
 	}
+}
 
-	tbl := NewTable(len(mtrx), len(mtrx[0]))
-	tbl.data = mtrx
+func getData(c *xlsx.Cell) string {
+	// fmt.Printf("%s\n", cell.String())
+	val, err := c.SafeFormattedValue()
+	if err != nil {
+		val = c.Value
+	}
 
-	return tbl, err
+	return strings.Replace(val, `\ `, ` `, -1)
 }
 
 var (
