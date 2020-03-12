@@ -19,7 +19,7 @@ func TestMain(t *testing.T) {
 		var buf bytes.Buffer
 		// t.Log("About to io.Copy")
 		if _, err := io.Copy(&buf, r); err != nil {
-			t.Errorf("Failed to caputer output: %v", err)
+			t.Errorf("Failed to capture output: %v", err)
 		}
 		// t.Log("Done io.Copy")
 		oc <- buf.String()

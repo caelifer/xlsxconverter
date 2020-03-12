@@ -8,7 +8,6 @@ import (
 
 	// Vendor's libs
 	"github.com/tealeg/xlsx"
-
 	// Local libs
 )
 
@@ -68,16 +67,16 @@ func (t *Table) SetDataAt(row, col int, data string) {
 }
 
 func (t *Table) String() string {
-	res := "=== Header ===\n"
+	res := "=== Table Header ===\n"
 	res += strings.Join(t.Header(), "|")
-	res += "\n---  Data  ---\n"
+	res += "\n===  Table Data  ===\n"
 
 	data := t.Data()
 	for x := range data {
 		res += strings.Join(data[x], "|")
 		res += "\n"
 	}
-	res += "===  End   ===\n"
+	res += "===  End Table  ===\n"
 
 	return res
 }
